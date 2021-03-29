@@ -173,7 +173,10 @@ class App:
             dt = (ct-time.time())
         self.on_cleanup()
 
-if __name__ == "__main__" :
-    with cd("MCPI"):
+try:
+    if __name__ == "__main__" :
+    # with cd("MCPI"):
         theApp = App()
         theApp.on_execute()
+except Exception as e:
+    print("\u001b[31m"+e)
