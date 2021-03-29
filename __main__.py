@@ -42,52 +42,10 @@ class App:
         self.fTheta += 0.5 * dt
         self.world.on_update(dt)
     def on_render(self):
-        self.display_surf.fill((0, 255, 0))
+        self.display_surf.fill((0, 0, 0))
         tris = []
-        for b in self.world.get_blocks():
-            mesh = [
-                [
-                    [b.loc.x, b.loc.y, b.loc.z],[b.loc.x, b.loc.y+1, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z]
-                ],
-                [
-                    [b.loc.x, b.loc.y, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z],[b.loc.x+1, b.loc.y, b.loc.z]
-                ],
-                [
-                    [b.loc.x+1, b.loc.y, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z+1]
-                ],
-                [
-                    [b.loc.x+1, b.loc.y, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z+1],[b.loc.x+1, b.loc.y, b.loc.z+1]
-                ],
-                [
-                    [b.loc.x+1, b.loc.y, b.loc.z+1],[b.loc.x+1, b.loc.y+1, b.loc.z+1],[b.loc.x, b.loc.y+1, b.loc.z+1]
-                ],
-                [
-                    [b.loc.x+1, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y+1, b.loc.z+1],[b.loc.x, b.loc.y, b.loc.z+1]
-                ],
-                [
-                    [b.loc.x, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y+1, b.loc.z+1],[b.loc.x, b.loc.y+1, b.loc.z]
-                ],
-                [
-                    [b.loc.x, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y+1, b.loc.z],[b.loc.x, b.loc.y, b.loc.z]
-                ],
-                [
-                    [b.loc.x, b.loc.y+1, b.loc.z],[b.loc.x, b.loc.y+1, b.loc.z+1],[b.loc.x+1, b.loc.y+1, b.loc.z+1]
-                ],
-                [
-                    [b.loc.x, b.loc.y+1, b.loc.z],[b.loc.x+1, b.loc.y+1, b.loc.z+1],[b.loc.x+1, b.loc.y+1, b.loc.z]
-                ],
-                [
-                    [b.loc.x, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y, b.loc.z]
-                ],
-                [
-                    [b.loc.x, b.loc.y, b.loc.z+1],[b.loc.x, b.loc.y, b.loc.z],[b.loc.x+1, b.loc.y, b.loc.z]
-                ]
-            ]
-            for tri in range(12):
-                t = []
-                for vec in range(3):
-                    t.append(meth.vec3d(*mesh[tri][vec]))
-                tris.append(meth.tri(*t))
+        for b in self.world.get_blocks((0, 0, 0)):
+            tris.extend(b.as_tris())
         for tri in tris:
             triTrans = tri
             matRotZ = meth.mat4x4([
@@ -133,10 +91,9 @@ class App:
 
             l = math.sqrt(normal.x**2 + normal.y**2 + normal.z**2)
 
-            if l != 0:
-                normal.x /= l
-                normal.y /= l
-                normal.z /= l
+            normal.x /= l
+            normal.y /= l
+            normal.z /= l
 
             if normal.z < 0:
                 triProj = meth.tri(meth.mult_mat_vec(triTrans.p1, self.proj_mat),
@@ -151,7 +108,7 @@ class App:
                 triProj.p2.y = (triProj.p2.y+1)*0.5*self.height
                 triProj.p3.y = (triProj.p3.y+1)*0.5*self.height
 
-                pygame.draw.polygon(self.display_surf, (255, 0, 0), [
+                pygame.draw.polygon(self.display_surf, (255, 255, 255), [
                     (triProj.p1.x, triProj.p1.y),
                     (triProj.p2.x, triProj.p2.y),
                     (triProj.p3.x, triProj.p3.y),
