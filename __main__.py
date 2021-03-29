@@ -9,6 +9,8 @@ import mctypes as mct
 from halp import cd
 import math
 
+
+
 class App:
     def __init__(self):
         self.running = True
@@ -18,6 +20,7 @@ class App:
     def on_init(self):
         pygame.init()
         self.fTheta = 0
+        self.cam  = meth.vec3d(0, 0, 0)
         self.display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.world = mct.World()
         pygame.display.set_caption("I'll have a McPI please")
@@ -41,25 +44,42 @@ class App:
     def on_loop(self, dt):
         self.fTheta += 0.5 * dt
         self.world.on_update(dt)
+    
+    def matRotZ(self, angle):
+        return meth.mat4x4([
+            [math.cos(angle), math.sin(angle), 0, 0],
+            [-math.sin(angle), math.cos(angle), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+
+    def matRotX(self, angle):
+        return meth.mat4x4([
+            [1, 0, 0, 0],
+            [0, math.cos(angle), math.sin(angle), 0],
+            [0, -math.sin(angle), math.cos(angle), 0],
+            [0, 0, 0, 1],
+        ])
+
+    def matRotY(self, angle):
+        return meth.mat4x4([
+            [math.cos(angle), 0, math.sin(angle), 0],
+            [0, 1, 0, 0],
+            [-math.sin(angle), 0, math.cos(angle), 0],
+            [0, 0, 0, 1]
+        ])
+
     def on_render(self):
         self.display_surf.fill((0, 0, 0))
         tris = []
         for b in self.world.get_blocks((0, 0, 0)):
             tris.extend(b.as_tris())
+        tris_to_raster = []
         for tri in tris:
             triTrans = tri
-            matRotZ = meth.mat4x4([
-                [math.cos(self.fTheta), math.sin(self.fTheta), 0, 0],
-                [-math.sin(self.fTheta), math.cos(self.fTheta), 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1]
-            ])
-            matRotX = meth.mat4x4([
-                [1, 0, 0, 0],
-                [0, math.cos(self.fTheta), math.sin(self.fTheta), 0],
-                [0, -math.sin(self.fTheta), math.cos(self.fTheta), 0],
-                [0, 0, 0, 1],
-            ])
+            matRotZ = self.matRotZ(self.fTheta)
+            matRotX = self.matRotX(self.fTheta*2)
+            matRotY = self.matRotY(self.fTheta*3)
 
             triTrans = meth.tri(meth.mult_mat_vec(triTrans.p1, matRotZ),
                 meth.mult_mat_vec(triTrans.p2, matRotZ),
@@ -68,6 +88,10 @@ class App:
             triTrans = meth.tri(meth.mult_mat_vec(triTrans.p1, matRotX),
                 meth.mult_mat_vec(triTrans.p2, matRotX),
                 meth.mult_mat_vec(triTrans.p3, matRotX))
+
+            # triTrans = meth.tri(meth.mult_mat_vec(triTrans.p1, matRotY),
+            #     meth.mult_mat_vec(triTrans.p2, matRotX),
+            #     meth.mult_mat_vec(triTrans.p3, matRotX))
 
             triTrans.p1.z += 3
             triTrans.p2.z += 3
@@ -95,11 +119,24 @@ class App:
             normal.y /= l
             normal.z /= l
 
-            if normal.z < 0:
+            if (normal.x * (triTrans.p1.x - self.cam.x) +
+                normal.y * (triTrans.p1.y - self.cam.y) +
+                normal.z * (triTrans.p1.z - self.cam.z)) < 0:
+                
+                light_dir = meth.vec3d(0, 0, -1)
+                l = math.sqrt(light_dir.x**2 + light_dir.y**2 + light_dir.z**2)
+                light_dir.x /= l
+                light_dir.y /= l
+                light_dir.x /= l
+                
+                dp = normal.x * light_dir.x + normal.y * light_dir.y + normal.z * light_dir.z
+                
                 triProj = meth.tri(meth.mult_mat_vec(triTrans.p1, self.proj_mat),
                     meth.mult_mat_vec(triTrans.p2, self.proj_mat),
                     meth.mult_mat_vec(triTrans.p3, self.proj_mat))
 
+                triProj.t = dp
+                
                 triProj.p1.x = (triProj.p1.x+1)*0.5*self.width
                 triProj.p2.x = (triProj.p2.x+1)*0.5*self.width
                 triProj.p3.x = (triProj.p3.x+1)*0.5*self.width
@@ -107,12 +144,23 @@ class App:
                 triProj.p1.y = (triProj.p1.y+1)*0.5*self.height
                 triProj.p2.y = (triProj.p2.y+1)*0.5*self.height
                 triProj.p3.y = (triProj.p3.y+1)*0.5*self.height
+                
+                tris_to_raster.append(triProj)
+                
+        def k(t1):
+            z1 = t1.p1.z + t1.p2.z + t1.p3.z
+            z1 /= 3
+            return z1
+                
+        tris_to_raster = sorted(tris_to_raster, key=k, reverse=False)
+                
+        for tri in tris_to_raster:
 
-                pygame.draw.polygon(self.display_surf, (255, 255, 255), [
-                    (triProj.p1.x, triProj.p1.y),
-                    (triProj.p2.x, triProj.p2.y),
-                    (triProj.p3.x, triProj.p3.y),
-                ], 1)
+            pygame.draw.polygon(self.display_surf, (max(255*tri.t,64), max(255*tri.t,64), max(255*tri.t,64)), [
+                (tri.p1.x, tri.p1.y),
+                (tri.p2.x, tri.p2.y),
+                (tri.p3.x, tri.p3.y),
+            ], 1)
         pygame.display.flip()
     def on_cleanup(self):
         pygame.quit()

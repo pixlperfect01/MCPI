@@ -3,6 +3,7 @@ import numpy as np
 class vec3d:
     def __init__(self, x, y, z):
         self.x, self.y, self.z = x, y, z
+        self.t = 0
 
 class tri:
     def __init__(self, p1, p2, p3):
